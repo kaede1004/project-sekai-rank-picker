@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>世界計畫｜段位隨機抽選</title>
+<style>
+:root{color-scheme:dark;--bg:#10131d;--panel:#1b2030;--panel2:#242b3e;--line:#39435b;--text:#f4f5fb;--muted:#aab3c8;--accent:#a99aff;--accent2:#6fe0d0}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at top,#24233f 0,#10131d 52%);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;min-height:100vh;padding:28px 16px 48px}
+main{max-width:850px;margin:auto}
+header{text-align:center;margin:12px 0 26px}
+h1{font-size:clamp(25px,5vw,36px);margin:0 0 8px;letter-spacing:.04em}
+header p{margin:0;color:var(--muted);font-size:14px}
+.panel{background:rgba(27,32,48,.94);border:1px solid var(--line);border-radius:18px;padding:20px;margin:16px 0;box-shadow:0 12px 35px #0003}
+label{display:block;color:var(--muted);font-size:14px;margin-bottom:9px}
+select,button{font:inherit}
+select{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:11px;padding:13px 14px;font-size:16px}
+.actions{display:flex;gap:10px;margin-top:14px}
+button{border:0;border-radius:11px;padding:12px 18px;font-weight:700;cursor:pointer}
+#draw{background:var(--accent);color:#171329;flex:1}
+#again{background:#343d55;color:var(--text)}
+button:active{transform:scale(.985)}
+button:focus-visible,select:focus-visible{outline:3px solid var(--accent2);outline-offset:2px}
+.hint{color:var(--muted);font-size:13px;line-height:1.65;margin:13px 2px 0}
+.result-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+h2{font-size:19px;margin:0}
+.count{font-size:12px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:11px}
+.song{background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:15px;min-height:112px}
+.song .num{font-size:12px;color:var(--accent2);font-weight:700;margin-bottom:8px}
+.song .name{font-size:16px;font-weight:700;line-height:1.45;overflow-wrap:anywhere}
+.tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.tag{font-size:12px;padding:4px 8px;border-radius:7px;background:#37334f;color:#d8d0ff}
+.tag.level{background:#23413f;color:#a7f1e6}
+.empty{color:var(--muted);text-align:center;padding:28px 10px}
+footer{text-align:center;color:#778198;font-size:12px;margin-top:22px}
+@media(max-width:480px){body{padding:18px 12px 36px}.panel{padding:16px}.actions button{padding:12px 13px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>段位隨機抽選</h1>
+<p>世界計畫 Project SEKAI｜依照指定段位範圍抽取譜面</p>
+</header>
+<section class="panel">
+<label for="rank">選擇要挑戰的段位</label>
+<select id="rank">
+<option value="新手">新手</option><option value="青銅">青銅</option>
+<option value="白銀1">白銀 1</option><option value="白銀2">白銀 2</option>
+<option value="黃金1">黃金 1</option><option value="黃金2">黃金 2</option>
+<option value="白金1">白金 1</option><option value="白金2">白金 2</option><option value="白金3">白金 3</option>
+<option value="鑽石1">鑽石 1</option><option value="鑽石2">鑽石 2</option><option value="鑽石3">鑽石 3</option>
+<option value="鑽石3升大師">鑽石 3升大師</option>
+</select>
+<div class="actions"><button id="draw">開始抽選</button><button id="again" disabled>重新抽選</button></div>
+<p class="hint" id="rule">選擇段位後，按下「開始抽選」。非鑽石段位依等級加權抽選：最低 20%、最高 20%、中間等級合計 60%；Expert／Master／Append 合併計算。</p>
+</section>
+<section class="panel" aria-live="polite">
+<div class="result-head"><h2 id="resultTitle">抽選結果</h2><span class="count" id="resultCount">尚未抽選</span></div>
+<div class="cards" id="results"><div class="empty">選擇段位，開始你的挑戰吧！</div></div>
+</section>
+<footer>譜面資料依照你提供的清單整理；抽選結果僅在此頁面即時產生。</footer>
+</main>
+<script>
+const base = {
+22:[["What's up? Pop!","Hard"],["初音ミクの消失","Hard"],["恋愛裁判","Expert"],["泥中に咲く","Expert"],["独りんぼエンヴィー","Expert"],["Tell Your World","Expert"],["glow","Expert"],["SAIRAI","Expert"]],
+23:[["ECHO","Expert"],["ラグトレイン","Expert"],["仮死化","Expert"],["深海少女","Expert"],["砂の惑星","Expert"],["妄想感傷代償連盟","Expert"],["マシンガンポエムドール","Hard"],["おぎゃりないざー","Hard"],["Don't Fight The Music","Hard"],["人生","Hard"]],
+24:[["少女A","Expert"],["抜錨","Expert"],["あの夏が飽和する","Expert"],["おちゃめ機能","Expert"],["はじまりの未来","Expert"],["ロキ","Expert"],["乙女解剖","Expert"],["演劇","Expert"],["光線歌","Expert"],["孃王","Hard"]],
+25:[["25時の情熱","Master"],["余花にみとれて","Master"],["NEO","Expert"],["QUEEN","Expert"],["アスノヨゾラ哨戒班","Expert"],["ド屑","Expert"],["メルト","Expert"],["愛して愛して愛して","Expert"],["携帯恋話","Expert"],["神っぽいな","Expert"],["混沌ブギ","Expert"],["失敗作少女","Expert"],["天ノ弱","Expert"],["ULTIM@TE☆BE∀M!!","Hard"],["怪獣になりたい","Hard"]],
+26:[["霽れを待つ","Expert"],["千本桜","Expert"],["庭師のおはなしによると","Expert"],["悔やむと書いてミライ","Expert"],["踊","Expert"],["裏表ラバーズ","Expert"],["命に嫌われている","Expert"],["ロストワンの号哭","Expert"],["ロウワー","Expert"],["ももいろの鍵","Expert"],["モニタリング","Expert"],["グッバイ宣言","Expert"],["Iなんです","Expert"],["I know 愛脳.","Expert"],["Gimme×Gimme","Expert"],["独りんぼエンヴィー","Master"],["泥中に咲く","Master"],["Tell Your World","Master"],["glow","Master"],["ECHO","Master"]],
+27:[["SAIRAI","Master"],["「1」","Master"],["そこに在る、光。","Master"],["深海少女","Master"],["心拍数♯0822","Master"],["砂の惑星","Master"],["妄想感傷代償連盟","Master"],["幽霊東京","Master"],["99 Glooms","Expert"],["CHAOS","Expert"],["キラー","Expert"],["フューチャー・イヴ","Expert"],["十六歳の心臓","Expert"],["化けの花","Expert"],["春嵐","Expert"],["未完成讃歌","Expert"],["熱異常","Expert"],["超ナイト・オブ・ナイツ","Expert"],["トンデモワンダーズ","Expert"]],
+28:[["あの夏が飽和する","Master"],["ド屑","Master"],["はじまりの未来","Master"],["愛して愛して愛して","Master"],["威風堂々","Master"],["演劇","Master"],["乙女解剖","Master"],["強風オールバック","Master"],["光線歌","Master"],["天使の翼","Master"],["抜錨","Master"],["恋愛裁判","Master"],["私は雨","Master"],["ÅMARA(大未来電脳)","Expert"],["ヒバナ","Expert"],["ぼくらの16bit戦争","Expert"],["東京テディベア","Expert"],["初音天地開闢神話","Expert"],["脳漿炸裂ガール","Expert"]],
+29:[["39","Master"],["88☆彡","Master"],["Bad Apple!! feat.SEKAI","Master"],["NEO","Master"],["アスノヨゾラ哨戒班","Master"],["とても素敵な六月でした","Master"],["ハオ","Master"],["メルト","Master"],["ロキ","Master"],["踊","Master"],["神っぽいな","Master"],["失敗作少女","Master"],["天ノ弱","Master"],["熱風","Master"],["惑星ループ","Master"],["星界ちゃんと可不ちゃんのおつかい合騒曲","Expert"],["生命性シンドロウム","Expert"],["六兆年と一夜物語","Expert"]],
+30:[["Help me, ERINNNNNN!!","Master"],["KING","Master"],["おちゃめ機能","Master"],["グッバイ宣言","Master"],["ステラ","Master"],["のだ","Master"],["一千光年","Master"],["命に嫌われている","Master"],["裏表ラバーズ","Master"],["混沌ブギ","Master"],["少女A","Master"],["春嵐","Master"],["RAD DOGS","Master"],["ステラ","Master"],["フュージョン","Master"],["下剋上","Master"],["腐れ外道とチョコレゐト","Expert"],["Don't Fight The Music","Expert"],["初音ミクの激唱","Expert"],["初音ミクの消失","Expert"]],
+31:[["99 Glooms","Master"],["D/N/A","Master"],["know 愛脳.","Master"],["Iなんです","Master"],["そうだった!!","Master"],["にっこり調査隊のテーマ","Master"],["ロウワー","Master"],["十六歳の心臓","Master"],["地球最後の告白を","Master"],["庭師のおはなしによると","Master"],["化けの花","Master"],["未完成讃歌","Master"],["ももいろの鍵","Master"],["人生","Expert"],["ヤミナベ!!!!!","Expert"],["マシンガンポエムドール","Expert"],["エンドマークに希望と涙を添えて","Expert"],["孃王","Expert"],["What's up? Pop!","Expert"],["初音狂奏曲第01番「彗惺」","Expert"],["メモリア","Expert"]],
+32:[["folern","Master"],["Brand New Day","Master"],["テオ","Master"],["バグ","Master"],["ヒバナ","Master"],["星界ちゃんと可不ちゃんのおつかい合騒曲","Master"],["千本桜","Master"],["熱異常","Master"],["脳焼炸裂ガール","Master"],["IMAWANOKIWA","Master"],["snooze","Master"],["怪獣になりたい","Expert"]],
+33:[["MarbleBlue.","Master"],["ぼくらの16bit戦争","Master"],["初音天地開闢神話","Master"],["SAN値直葬","Master"],["嬢王","Master"],["at","Master"],["ロストワンの号哭","Master"],["生命性シンドロウム","Master"],["Internet Junkie","Master"],["超ナイト・オブ・ナイツ","Master"]]
+};
+const append = {
+24:["カナデトモスソラ","オーダーメイド","いちにのさんで"],
+25:["potatoになっていく","Tell Your World","ラグトレイン"],
+26:["Happy Halloween","いーあるふぁんくらぶ","妄想感傷代償連盟"],
+27:["グッバイ宣言","少女レイ","星を繋ぐ"],
+28:["KING","ロキ","仮死化"],
+29:["ECHO","YY","テトリス"],
+30:["劣等上等","ロウワー","モア！ジャンプ！モア！"],
+31:["一千光年","Bad Apple!! feat.SEKAI","千本桜","バグ","熱風","ステラ"],
+32:["88☆彡","Help me, ERINNNNNN!!","Journey","RAD DOGS","NEO","生きる","地球最後の告白を"]
+};
+const ranges = {
+"新手":{main:[22,24],diff:["Hard","Expert"]},
+"青銅":{main:[23,26],diff:["Hard","Expert","Master"]},
+"白銀1":{main:[25,28],diff:["Hard","Expert","Master"]},
+"白銀2":{main:[26,28],diff:["Expert","Master"]},
+"黃金1":{main:[27,30],diff:["Expert","Master"]},
+"黃金2":{main:[28,30],diff:["Expert","Master"],app:[24,28]},
+"白金1":{main:[29,31],diff:["Expert","Master"],app:[25,29]},
+"白金2":{main:[30,32],diff:["Expert","Master"],app:[26,30]},
+"白金3":{main:[30,32],diff:["Expert","Master"],app:[27,30]},
+"鑽石1":{main:[31,32],diff:["Expert","Master"],app:[28,31]},
+"鑽石2":{main:[31,33],diff:["Expert","Master"],app:[29,31]},
+"鑽石3":{main:[31,33],diff:["Expert","Master"],app:[30,32]}
+};
+const rank=document.getElementById('rank'), results=document.getElementById('results');
+const rule=document.getElementById('rule'), title=document.getElementById('resultTitle'), count=document.getElementById('resultCount');
+const drawBtn=document.getElementById('draw'), againBtn=document.getElementById('again');
+function mainPool(min,max,diffs){let out=[];for(let lv=min;lv<=max;lv++)for(const [name,diff] of (base[lv]||[]))if(diffs.includes(diff))out.push({name,diff,lv});return out;}
+function appPool(min,max){let out=[];for(let lv=min;lv<=max;lv++)for(const name of (append[lv]||[]))out.push({name,diff:"Append",lv});return out;}
+function shufflePick(pool,n){const a=[...pool];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a.slice(0,n);}
+function uniquePool(pool){const seen=new Set();return pool.filter(x=>{const k=x.lv+"|"+x.name+"|"+x.diff;if(seen.has(k))return false;seen.add(k);return true;});}
+// 依「譜面等級」加權：最低 20%、最高 20%，中間等級合計 60%。
+// Expert、Master、Append 先合併，再一起判斷最低與最高等級。
+function weightedDraw(pool,n){
+ const byLevel=new Map();
+ for(const chart of pool){
+  if(!byLevel.has(chart.lv))byLevel.set(chart.lv,[]);
+  byLevel.get(chart.lv).push(chart);
+ }
+ const levels=[...byLevel.keys()].sort((a,b)=>a-b);
+ if(levels.length<=2)return shufflePick(pool,n);
+ const weights=new Map();
+ weights.set(levels[0],0.2);
+ weights.set(levels[levels.length-1],0.2);
+ const middleWeight=0.6/(levels.length-2);
+ for(const lv of levels.slice(1,-1))weights.set(lv,middleWeight);
+ const chosen=[],used=new Set();
+ for(let i=0;i<n;i++){
+  const availableLevels=levels.filter(lv=>byLevel.get(lv).some(x=>!used.has(x.lv+"|"+x.name+"|"+x.diff)));
+  let total=availableLevels.reduce((sum,lv)=>sum+weights.get(lv),0);
+  let roll=Math.random()*total, selectedLevel=availableLevels[availableLevels.length-1];
+  for(const lv of availableLevels){roll-=weights.get(lv);if(roll<=0){selectedLevel=lv;break;}}
+  const candidates=byLevel.get(selectedLevel).filter(x=>!used.has(x.lv+"|"+x.name+"|"+x.diff));
+  const selected=candidates[Math.floor(Math.random()*candidates.length)];
+  chosen.push(selected);
+  used.add(selected.lv+"|"+selected.name+"|"+selected.diff);
+ }
+ return chosen;
+}
+function getDraw(rankName){
+ if(rankName==="鑽石3升大師"){
+   const lv32=uniquePool([...mainPool(32,32,["Master"]),...appPool(32,32)]);
+   const lv33=uniquePool(mainPool(33,33,["Master"]));
+   return [...shufflePick(lv32,2),...shufflePick(lv33,2)];
+ }
+ const cfg=ranges[rankName];let pool=mainPool(cfg.main[0],cfg.main[1],cfg.diff);
+ if(cfg.app)pool=pool.concat(appPool(cfg.app[0],cfg.app[1]));
+ pool=uniquePool(pool);
+ if(!rankName.startsWith("鑽石"))return weightedDraw(pool,3);
+ return shufflePick(pool,3);
+}
+function describe(r){
+ if(r==="鑽石3升大師")return "共抽 4 首：兩首 32（Master／Append），以及兩首 33（Master）。";
+ const c=ranges[r];let s=`從 ${c.main[0]}～${c.main[1]}（${c.diff.join("、")}）`;
+ if(c.app)s+=`，加上 ${c.app[0]}～${c.app[1]}（Append）`;
+ return s+" 的譜面中隨機抽出 3 首。非鑽石段位採最低等級 20%、最高等級 20%、中間等級合計 60% 的加權機率，Expert／Master／Append 合併計算。";
+}
+function render(){
+ const r=rank.value, picked=getDraw(r);
+ title.textContent=r==="鑽石3升大師"?"鑽石 3升大師｜抽選結果":r+"｜抽選結果";
+ count.textContent=`共 ${picked.length} 首`;
+ results.innerHTML="";
+ picked.forEach((x,i)=>{
+  const card=document.createElement("article");card.className="song";
+  const num=document.createElement("div");num.className="num";num.textContent=`CHALLENGE ${String(i+1).padStart(2,"0")}`;
+  const name=document.createElement("div");name.className="name";name.textContent=x.name;
+  const tags=document.createElement("div");tags.className="tags";
+  const lv=document.createElement("span");lv.className="tag";lv.textContent=`Lv.${x.lv}`;
+  const diff=document.createElement("span");diff.className="tag level";diff.textContent=x.diff;
+  tags.append(lv,diff);card.append(num,name,tags);results.append(card);
+ });
+ rule.textContent=describe(r);
+ count.textContent=`共 ${picked.length} 首｜每首譜面不重複`;
+ againBtn.disabled=false;
+}
+drawBtn.addEventListener("click",render);
+againBtn.addEventListener("click",render);
+rank.addEventListener("change",()=>{results.innerHTML='<div class="empty">已切換段位，按下「開始抽選」取得新結果。</div>';title.textContent="抽選結果";count.textContent="尚未抽選";againBtn.disabled=true;rule.textContent=describe(rank.value);});
+rule.textContent=describe(rank.value);
+</script>
+</body>
+</html>
