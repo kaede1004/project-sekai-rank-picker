@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -55,7 +56,7 @@ footer{text-align:center;color:#778198;font-size:12px;margin-top:22px}
 <option value="鑽石3升大師">鑽石 3升大師</option>
 </select>
 <div class="actions"><button id="draw">開始抽選</button><button id="again" disabled>重新抽選</button></div>
-<p class="hint" id="rule">選擇段位後，按下「開始抽選」。非鑽石段位依等級加權抽選：最低 20%、最高 20%、中間等級合計 60%；Expert／Master／Append 合併計算。</p>
+<p class="hint" id="rule">選擇段位後，按下「開始抽選」。一般段位及鑽石 1：Append-only 等級合計 20%、最高等級 20%、其餘等級平分 60%；同等級內再於可用譜面類型間等機率抽選。鑽石 2 以上維持原抽選方式。</p>
 </section>
 <section class="panel" aria-live="polite">
 <div class="result-head"><h2 id="resultTitle">抽選結果</h2><span class="count" id="resultCount">尚未抽選</span></div>
@@ -110,8 +111,6 @@ function mainPool(min,max,diffs){let out=[];for(let lv=min;lv<=max;lv++)for(cons
 function appPool(min,max){let out=[];for(let lv=min;lv<=max;lv++)for(const name of (append[lv]||[]))out.push({name,diff:"Append",lv});return out;}
 function shufflePick(pool,n){const a=[...pool];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a.slice(0,n);}
 function uniquePool(pool){const seen=new Set();return pool.filter(x=>{const k=x.lv+"|"+x.name+"|"+x.diff;if(seen.has(k))return false;seen.add(k);return true;});}
-// 依「譜面等級」加權：最低 20%、最高 20%，中間等級合計 60%。
-// Expert、Master、Append 先合併，再一起判斷最低與最高等級。
 function weightedDraw(pool,n){
  const byLevel=new Map();
  for(const chart of pool){
@@ -119,20 +118,43 @@ function weightedDraw(pool,n){
   byLevel.get(chart.lv).push(chart);
  }
  const levels=[...byLevel.keys()].sort((a,b)=>a-b);
- if(levels.length<=2)return shufflePick(pool,n);
+ if(levels.length<=1)return shufflePick(pool,n);
+ const appendOnly=levels.filter(lv=>byLevel.get(lv).every(x=>x.diff==="Append"));
+ const highest=levels[levels.length-1];
  const weights=new Map();
- weights.set(levels[0],0.2);
- weights.set(levels[levels.length-1],0.2);
- const middleWeight=0.6/(levels.length-2);
- for(const lv of levels.slice(1,-1))weights.set(lv,middleWeight);
+ if(appendOnly.length>0 && !appendOnly.includes(highest)){
+  const appendWeight=0.20/appendOnly.length;
+  for(const lv of appendOnly)weights.set(lv,appendWeight);
+  weights.set(highest,0.20);
+  const others=levels.filter(lv=>!appendOnly.includes(lv)&&lv!==highest);
+  if(others.length>0){
+   const each=0.60/others.length;
+   for(const lv of others)weights.set(lv,each);
+  }else{
+   weights.set(highest,weights.get(highest)+0.60);
+  }
+ }else{
+  weights.set(levels[0],0.20);
+  weights.set(highest,0.20);
+  const middle=levels.slice(1,-1);
+  if(middle.length){
+   const each=0.60/middle.length;
+   for(const lv of middle)weights.set(lv,each);
+  }else{
+   weights.set(highest,weights.get(highest)+0.60);
+  }
+ }
  const chosen=[],used=new Set();
  for(let i=0;i<n;i++){
   const availableLevels=levels.filter(lv=>byLevel.get(lv).some(x=>!used.has(x.lv+"|"+x.name+"|"+x.diff)));
-  let total=availableLevels.reduce((sum,lv)=>sum+weights.get(lv),0);
+  let total=availableLevels.reduce((sum,lv)=>sum+(weights.get(lv)||0),0);
   let roll=Math.random()*total, selectedLevel=availableLevels[availableLevels.length-1];
-  for(const lv of availableLevels){roll-=weights.get(lv);if(roll<=0){selectedLevel=lv;break;}}
+  for(const lv of availableLevels){roll-=weights.get(lv)||0;if(roll<=0){selectedLevel=lv;break;}}
   const candidates=byLevel.get(selectedLevel).filter(x=>!used.has(x.lv+"|"+x.name+"|"+x.diff));
-  const selected=candidates[Math.floor(Math.random()*candidates.length)];
+  const diffTypes=[...new Set(candidates.map(x=>x.diff))];
+  const selectedDiff=diffTypes[Math.floor(Math.random()*diffTypes.length)];
+  const sameType=candidates.filter(x=>x.diff===selectedDiff);
+  const selected=sameType[Math.floor(Math.random()*sameType.length)];
   chosen.push(selected);
   used.add(selected.lv+"|"+selected.name+"|"+selected.diff);
  }
@@ -147,14 +169,14 @@ function getDraw(rankName){
  const cfg=ranges[rankName];let pool=mainPool(cfg.main[0],cfg.main[1],cfg.diff);
  if(cfg.app)pool=pool.concat(appPool(cfg.app[0],cfg.app[1]));
  pool=uniquePool(pool);
- if(!rankName.startsWith("鑽石"))return weightedDraw(pool,3);
+ if(!rankName.startsWith("鑽石") || rankName==="鑽石1")return weightedDraw(pool,3);
  return shufflePick(pool,3);
 }
 function describe(r){
  if(r==="鑽石3升大師")return "共抽 4 首：兩首 32（Master／Append），以及兩首 33（Master）。";
  const c=ranges[r];let s=`從 ${c.main[0]}～${c.main[1]}（${c.diff.join("、")}）`;
  if(c.app)s+=`，加上 ${c.app[0]}～${c.app[1]}（Append）`;
- return s+" 的譜面中隨機抽出 3 首。非鑽石段位採最低等級 20%、最高等級 20%、中間等級合計 60% 的加權機率，Expert／Master／Append 合併計算。";
+ return s+" 的譜面中隨機抽出 3 首。一般段位及鑽石 1 採 Append-only 等級合計 20%、最高等級 20%、其餘等級合計 60% 的加權機率；同一等級內再於可用譜面類型間等機率抽選。鑽石 2 以上維持原抽選方式。";
 }
 function render(){
  const r=rank.value, picked=getDraw(r);
